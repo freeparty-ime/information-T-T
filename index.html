@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>声音数字化模拟器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #0f1e2a 0%, #1a2a3a 50%, #0f1e2a 100%);
+  color: #e0e6ed; min-height: 100vh; padding: 15px;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+h1 {
+  text-align: center; font-size: 24px; color: #00ff88;
+  margin-bottom: 15px; letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(0,255,136,0.3);
+}
+.main-layout { display: flex; gap: 15px; flex-wrap: wrap; }
+.left-panel { flex: 1; min-width: 500px; display: flex; flex-direction: column; gap: 12px; }
+.right-panel { width: 280px; flex-shrink: 0; }
+.card {
+  background: rgba(18,30,42,0.85); border: 1px solid #2a3a4a;
+  border-radius: 10px; padding: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.card-title {
+  font-size: 14px; color: #00d4ff; margin-bottom: 10px;
+  font-weight: bold; border-left: 3px solid #00d4ff;
+  padding-left: 8px;
+}
+#waveCanvas {
+  width: 100%; height: 320px;
+  background: #0a1520; border-radius: 6px;
+  border: 1px solid #2a3a4a; display: block;
+}
+.opt-group { margin-bottom: 14px; }
+.opt-label {
+  font-size: 13px; color: #b0bec5; margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.opt-label .val { color: #ff6b35; font-weight: bold; font-size: 13px; }
+.radio-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.radio-item {
+  flex: 1; min-width: 50px; text-align: center;
+  padding: 7px 4px; background: #1a2a3a; border: 1px solid #2a3a4a;
+  border-radius: 5px; font-size: 12px; color: #b0bec5;
+  cursor: pointer; transition: all 0.2s; user-select: none;
+}
+.radio-item:hover { border-color: #00d4ff; color: #00d4ff; }
+.radio-item.active {
+  background: #0a2235; border-color: #00d4ff; color: #00d4ff;
+  box-shadow: 0 0 8px rgba(0,212,255,0.2);
+}
+.slider-row { display: flex; align-items: center; gap: 10px; }
+input[type="range"] {
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 6px; background: #2a3a4a; border-radius: 3px; outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px;
+  background: #ff6b35; border-radius: 50%; cursor: pointer;
+  box-shadow: 0 0 6px rgba(255,107,53,0.5);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; background: #ff6b35;
+  border: none; border-radius: 50%; cursor: pointer;
+}
+.btn-row { display: flex; gap: 10px; margin-top: 10px; }
+.btn {
+  flex: 1; padding: 10px; border: none; border-radius: 6px;
+  font-size: 14px; cursor: pointer; transition: all 0.2s;
+  font-family: inherit;
+}
+.btn-play {
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  color: #0a1520; font-weight: bold;
+}
+.btn-play:hover { box-shadow: 0 0 12px rgba(0,255,136,0.4); }
+.btn-stop {
+  background: linear-gradient(135deg, #ff6b35, #cc5028);
+  color: #fff;
+}
+.btn-stop:hover { box-shadow: 0 0 12px rgba(255,107,53,0.4); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.data-table th, .data-table td {
+  border: 1px solid #2a3a4a; padding: 5px 4px; text-align: center;
+}
+.data-table th {
+  background: #0a2235; color: #00d4ff; font-weight: bold;
+}
+.data-table td.dec { color: #ff6b35; }
+.data-table td.bin { color: #00ff88; font-family: Consolas, monospace; }
+.formula-box {
+  background: #0a1520; border-radius: 6px; padding: 12px;
+  font-family: Consolas, monospace; font-size: 13px;
+  line-height: 1.8;
+}
+.formula-line { color: #b0bec5; }
+.formula-result { color: #00ff88; font-weight: bold; }
+.formula-unit { color: #ff6b35; }
+.compare-toggle {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; font-size: 12px; color: #b0bec5;
+}
+.switch {
+  position: relative; width: 36px; height: 20px;
+  background: #2a3a4a; border-radius: 10px; cursor: pointer;
+  transition: background 0.2s;
+}
+.switch.on { background: #00d4ff; }
+.switch-dot {
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; background: #fff;
+  border-radius: 50%; transition: left 0.2s;
+}
+.switch.on .switch-dot { left: 18px; }
+.hint { font-size: 11px; color: #5d6d7e; margin-top: 6px; }
+.song-label { font-size: 11px; color: #5d6d7e; margin-top: 2px; }
+@media (max-width: 820px) {
+  .right-panel { width: 100%; }
+  .main-layout { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>&#127925; 声音数字化模拟器</h1>
+<div class="main-layout">
+  <div class="left-panel">
+    <div class="card">
+      <div class="card-title">波形显示区</div>
+      <canvas id="waveCanvas"></canvas>
+      <div class="compare-toggle">
+        <div class="switch" id="compareSwitch"><div class="switch-dot"></div></div>
+        <span>对比模式（上下分屏对比低质量 vs 高质量）</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">采样数据表（前12个采样点）</div>
+      <table class="data-table" id="dataTable">
+        <thead>
+          <tr id="theadSeq"></tr>
+          <tr id="theadDec"></tr>
+          <tr id="theadBin"></tr>
+        </thead>
+      </table>
+      <div class="hint">* 量化值和二进制编码随参数实时变化</div>
+    </div>
+    <div class="card">
+      <div class="card-title">存储容量计算</div>
+      <div class="formula-box" id="formulaBox">
+        <div class="formula-line">公式: 音频存储容量 = 采样频率 &times; 量化位数 &times; 声道数 &times; 时长 / 8</div>
+        <div class="formula-line" id="formulaSub"></div>
+        <div class="formula-result" id="formulaResult"></div>
+      </div>
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="card">
+      <div class="card-title">参数控制面板</div>
+
+      <div class="opt-group">
+        <div class="opt-label">旋律选择 <span class="val" id="songVal">小星星</span></div>
+        <div class="radio-row" id="songOpts">
+          <div class="radio-item active" data-val="twinkle">小星星</div>
+          <div class="radio-item" data-val="joy">欢乐颂</div>
+          <div class="radio-item" data-val="tiger">两只老虎</div>
+          <div class="radio-item" data-val="bee">小蜜蜂</div>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-label">采样频率 <span class="val" id="freqVal">44100 Hz</span></div>
+        <div class="radio-row" id="freqOpts">
+          <div class="radio-item" data-val="8000">8000Hz<br><span style="font-size:10px">电话</span></div>
+          <div class="radio-item" data-val="22050">22050Hz<br><span style="font-size:10px">广播</span></div>
+          <div class="radio-item active" data-val="44100">44100Hz<br><span style="font-size:10px">CD</span></div>
+          <div class="radio-item" data-val="96000">96000Hz<br><span style="font-size:10px">高清</span></div>
+        </div>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">量化位数 <span class="val" id="bitsVal">8 位</span></div>
+        <div class="radio-row" id="bitsOpts">
+          <div class="radio-item" data-val="4">4位<br><span style="font-size:10px">16级</span></div>
+          <div class="radio-item active" data-val="8">8位<br><span style="font-size:10px">256级</span></div>
+          <div class="radio-item" data-val="16">16位<br><span style="font-size:10px">65536级</span></div>
+        </div>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">声道数 <span class="val" id="chVal">双声道</span></div>
+        <div class="radio-row" id="chOpts">
+          <div class="radio-item" data-val="1">单声道</div>
+          <div class="radio-item active" data-val="2">双声道</div>
+        </div>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">播放速度 <span class="val" id="speedVal">1.0x</span></div>
+        <div class="slider-row">
+          <input type="range" id="speedSlider" min="0.5" max="2.0" value="1.0" step="0.1">
+        </div>
+        <div class="hint">调速度会同时改变音高（磁带效果）</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-play" id="playBtn">&#9654; 播放声音</button>
+        <button class="btn btn-stop" id="stopBtn" disabled>&#9209; 停止</button>
+      </div>
+      <div class="hint" id="playHint">点击播放可听不同参数下的音质差异</div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+(function() {
+'use strict';
+
+if (window.NodeList && !NodeList.prototype.forEach) {
+  NodeList.prototype.forEach = Array.prototype.forEach;
+}
+
+// ===== 音符频率 =====
+var NOTE_FREQ = {
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23,
+  G4: 392.00, A4: 440.00, B4: 493.88, C5: 523.25,
+  R: 0
+};
+
+// ===== 旋律数据 =====
+var MELODIES = {
+  twinkle: {
+    name: '小星星',
+    tempo: 0.33,
+    notes: [
+      {n:'C4',b:1},{n:'C4',b:1},{n:'G4',b:1},{n:'G4',b:1},{n:'A4',b:1},{n:'A4',b:1},{n:'G4',b:2},
+      {n:'F4',b:1},{n:'F4',b:1},{n:'E4',b:1},{n:'E4',b:1},{n:'D4',b:1},{n:'D4',b:1},{n:'C4',b:2},
+      {n:'G4',b:1},{n:'G4',b:1},{n:'F4',b:1},{n:'F4',b:1},{n:'E4',b:1},{n:'E4',b:1},{n:'D4',b:2},
+      {n:'G4',b:1},{n:'G4',b:1},{n:'F4',b:1},{n:'F4',b:1},{n:'E4',b:1},{n:'E4',b:1},{n:'D4',b:2},
+      {n:'C4',b:1},{n:'C4',b:1},{n:'G4',b:1},{n:'G4',b:1},{n:'A4',b:1},{n:'A4',b:1},{n:'G4',b:2},
+      {n:'F4',b:1},{n:'F4',b:1},{n:'E4',b:1},{n:'E4',b:1},{n:'D4',b:1},{n:'D4',b:1},{n:'C4',b:2}
+    ]
+  },
+  joy: {
+    name: '欢乐颂',
+    tempo: 0.6,
+    notes: [
+      {n:'E4',b:1},{n:'E4',b:1},{n:'F4',b:1},{n:'G4',b:1},
+      {n:'G4',b:1},{n:'F4',b:1},{n:'E4',b:1},{n:'D4',b:1},
+      {n:'C4',b:1},{n:'C4',b:1},{n:'D4',b:1},{n:'E4',b:1},
+      {n:'E4',b:1.5},{n:'D4',b:1.5},
+      {n:'E4',b:1},{n:'E4',b:1},{n:'F4',b:1},{n:'G4',b:1},
+      {n:'G4',b:1},{n:'F4',b:1},{n:'E4',b:1},{n:'D4',b:1},
+      {n:'C4',b:1},{n:'C4',b:1},{n:'D4',b:1},{n:'E4',b:1},
+      {n:'D4',b:1.5},{n:'C4',b:1.5}
+    ]
+  },
+  tiger: {
+    name: '两只老虎',
+    tempo: 0.5,
+    notes: [
+      {n:'C4',b:1},{n:'D4',b:1},{n:'E4',b:1},{n:'C4',b:1},
+      {n:'C4',b:1},{n:'D4',b:1},{n:'E4',b:1},{n:'C4',b:1},
+      {n:'E4',b:1},{n:'F4',b:1},{n:'G4',b:2},
+      {n:'E4',b:1},{n:'F4',b:1},{n:'G4',b:2},
+      {n:'G4',b:0.5},{n:'A4',b:0.5},{n:'G4',b:0.5},{n:'F4',b:0.5},{n:'E4',b:1},{n:'C4',b:1},
+      {n:'G4',b:0.5},{n:'A4',b:0.5},{n:'G4',b:0.5},{n:'F4',b:0.5},{n:'E4',b:1},{n:'C4',b:1},
+      {n:'C4',b:1},{n:'G4',b:1},{n:'C4',b:2},
+      {n:'C4',b:1},{n:'G4',b:1},{n:'C4',b:2}
+    ]
+  },
+  bee: {
+    name: '小蜜蜂',
+    tempo: 0.65,
+    notes: [
+      {n:'G4',b:1},{n:'E4',b:1},{n:'E4',b:0.5},
+      {n:'F4',b:1},{n:'D4',b:1},{n:'D4',b:0.5},
+      {n:'C4',b:1},{n:'D4',b:1},{n:'E4',b:1},{n:'F4',b:1},
+      {n:'G4',b:1},{n:'G4',b:1},{n:'G4',b:2},
+      {n:'G4',b:1},{n:'E4',b:1},{n:'E4',b:0.5},
+      {n:'F4',b:1},{n:'D4',b:1},{n:'D4',b:0.5},
+      {n:'C4',b:1},{n:'D4',b:1},{n:'E4',b:1},{n:'F4',b:1},
+      {n:'G4',b:1},{n:'G4',b:1},{n:'G4',b:2}
+    ]
+  }
+};
+
+// ===== 状态 =====
+var state = {
+  song: 'twinkle',
+  freq: 44100,
+  bits: 8,
+  channels: 2,
+  duration: 15.0,
+  speed: 1.0,
+  compare: false,
+  playing: false
+};
+
+// 波形显示窗口（秒）
+var DISPLAY_WINDOW = 1.5;
+
+// ===== 旋律信号生成 =====
+// 返回旋律总时长（秒）
+function getMelodyDuration() {
+  var m = MELODIES[state.song];
+  var total = 0;
+  for (var i = 0; i < m.notes.length; i++) {
+    total += m.notes[i].b * m.tempo;
+  }
+  return total;
+}
+
+// 在绝对时间t（秒）处获取旋律信号值（循环播放）
+function melodySignal(t) {
+  var m = MELODIES[state.song];
+  var melodyDur = getMelodyDuration();
+  if (melodyDur > 0) {
+    t = t % melodyDur;
+  }
+
+  var elapsed = 0;
+  var currentNote = null;
+  var noteStartTime = 0;
+  var noteDuration = 0;
+
+  for (var i = 0; i < m.notes.length; i++) {
+    var noteDur = m.notes[i].b * m.tempo;
+    if (elapsed + noteDur > t) {
+      currentNote = m.notes[i];
+      noteStartTime = elapsed;
+      noteDuration = noteDur;
+      break;
+    }
+    elapsed += noteDur;
+  }
+
+  if (!currentNote) return 0;
+
+  var freq = NOTE_FREQ[currentNote.n];
+  if (freq === 0) return 0;
+
+  // 音符内时间
+  var noteT = t - noteStartTime;
+
+  // 包络：快速攻击 + 渐弱，避免点击声
+  var attack = 0.01;
+  var env;
+  if (noteT < attack) {
+    env = noteT / attack;
+  } else {
+    env = 1.0 - 0.3 * ((noteT - attack) / (noteDuration - attack));
+  }
+  env = Math.max(0, Math.min(1, env));
+
+  // 基频 + 2个谐波，模拟乐器音色
+  var phase = 2 * Math.PI * freq * t;
+  var signal = 0.5 * Math.sin(phase) + 0.25 * Math.sin(phase * 2) + 0.1 * Math.sin(phase * 3);
+
+  return signal * env;
+}
+
+// 量化函数
+function quantize(val, levels) {
+  var normalized = (val + 1) / 2;
+  normalized = Math.max(0, Math.min(1, normalized));
+  return Math.round(normalized * (levels - 1));
+}
+
+function toBinStr(dec, bits) {
+  var bin = dec.toString(2);
+  while (bin.length < bits) bin = '0' + bin;
+  return bin;
+}
+
+// ===== Canvas =====
+var canvas = document.getElementById('waveCanvas');
+var ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener('resize', function() { resizeCanvas(); drawWave(); });
+
+function drawWave() {
+  var rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  if (state.compare) {
+    var halfH = rect.height / 2;
+    drawWaveSection(0, 0, rect.width, halfH, 8000, 4, '低质量 (8000Hz, 4位)');
+    drawWaveSection(0, halfH, rect.width, halfH, state.freq, state.bits, '当前参数 (' + state.freq + 'Hz, ' + state.bits + '位)');
+  } else {
+    drawWaveSection(0, 0, rect.width, rect.height, state.freq, state.bits, '');
+  }
+}
+
+function drawWaveSection(xOff, yOff, width, height, freq, bits, label) {
+  var padL = 35, padR = 10, padT = 20, padB = 25;
+  var plotW = width - padL - padR;
+  var plotH = height - padT - padB;
+  var levels = Math.pow(2, bits);
+
+  ctx.strokeStyle = '#1a2a3a';
+  ctx.lineWidth = 0.5;
+  ctx.font = '10px Consolas';
+  ctx.fillStyle = '#5d6d7e';
+
+  for (var i = 0; i <= 4; i++) {
+    var gy = yOff + padT + (plotH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(xOff + padL, gy);
+    ctx.lineTo(xOff + padL + plotW, gy);
+    ctx.stroke();
+    ctx.fillText(Math.round((1 - i / 4) * (levels - 1)), xOff + 5, gy + 3);
+  }
+
+  ctx.strokeStyle = '#2a3a4a';
+  ctx.beginPath();
+  ctx.moveTo(xOff + padL, yOff + padT + plotH);
+  ctx.lineTo(xOff + padL + plotW, yOff + padT + plotH);
+  ctx.stroke();
+  ctx.fillText('时间', xOff + padL + plotW / 2 - 12, yOff + height - 5);
+  ctx.fillText('量化值', xOff + 2, yOff + padT - 5);
+
+  if (label) {
+    ctx.fillStyle = '#00d4ff';
+    ctx.font = 'bold 11px Microsoft YaHei';
+    ctx.fillText(label, xOff + padL, yOff + padT - 5);
+  }
+
+  // 原始模拟波形
+  ctx.strokeStyle = 'rgba(176,190,197,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  var samples = 400;
+  for (var i2 = 0; i2 <= samples; i2++) {
+    var t = (i2 / samples) * DISPLAY_WINDOW;
+    var val = melodySignal(t);
+    var y = yOff + padT + plotH / 2 - val * (plotH / 2) * 0.85;
+    var x = xOff + padL + (plotW / samples) * i2;
+    if (i2 === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // 采样点
+  var displaySamples = Math.min(Math.max(Math.round(freq / 1000 * 2), 20), 200);
+  ctx.fillStyle = 'rgba(0,212,255,0.15)';
+  ctx.strokeStyle = 'rgba(0,212,255,0.6)';
+  ctx.lineWidth = 1;
+
+  var prevQY = -1;
+  var quantData = [];
+
+  for (var i3 = 0; i3 <= displaySamples; i3++) {
+    var t3 = (i3 / displaySamples) * DISPLAY_WINDOW;
+    var val3 = melodySignal(t3);
+    var qVal = quantize(val3, levels);
+    var qNorm = (qVal / (levels - 1)) * 2 - 1;
+    var y3 = yOff + padT + plotH / 2 - qNorm * (plotH / 2) * 0.85;
+    var x3 = xOff + padL + (plotW / displaySamples) * i3;
+
+    if (i3 > 0) {
+      var blockH = Math.abs(y3 - prevQY);
+      var blockY = Math.min(y3, prevQY);
+      ctx.fillRect(x3 - plotW / displaySamples, blockY, plotW / displaySamples, Math.max(blockH, 1));
+    }
+
+    if (i3 > 0) {
+      ctx.beginPath();
+      ctx.moveTo(x3 - plotW / displaySamples, prevQY);
+      ctx.lineTo(x3, prevQY);
+      ctx.lineTo(x3, y3);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = '#ff6b35';
+    ctx.beginPath();
+    ctx.arc(x3, y3, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    prevQY = y3;
+    quantData.push(qVal);
+  }
+
+  if (!state.compare || yOff > 0) {
+    updateDataTable(quantData, bits);
+  }
+}
+
+// ===== 数据表 =====
+function updateDataTable(data, bits) {
+  var showCount = 12;
+  var theadSeq = document.getElementById('theadSeq');
+  var theadDec = document.getElementById('theadDec');
+  var theadBin = document.getElementById('theadBin');
+
+  var seqHtml = '<th>序号</th>';
+  var decHtml = '<td style="background:#0a2235;color:#00d4ff;font-weight:bold">量化值</td>';
+  var binHtml = '<td style="background:#0a2235;color:#00d4ff;font-weight:bold">二进制</td>';
+
+  for (var i = 0; i < showCount; i++) {
+    var val = data[i] !== undefined ? data[i] : 0;
+    seqHtml += '<th>' + (i + 1) + '</th>';
+    decHtml += '<td class="dec">' + val + '</td>';
+    binHtml += '<td class="bin">' + toBinStr(val, bits) + '</td>';
+  }
+
+  theadSeq.innerHTML = seqHtml;
+  theadDec.innerHTML = decHtml;
+  theadBin.innerHTML = binHtml;
+}
+
+// ===== 存储容量计算 =====
+function updateFormula() {
+  var bytes = state.freq * state.bits * state.channels * state.duration / 8;
+  document.getElementById('formulaSub').innerHTML =
+    '= ' + state.freq.toLocaleString() + ' &times; ' + state.bits + ' &times; ' +
+    state.channels + ' &times; ' + state.duration + ' / 8';
+  document.getElementById('formulaResult').innerHTML =
+    '= ' + Math.round(bytes).toLocaleString() + ' B <span class="formula-unit">&asymp; ' + formatSize(bytes) + '</span>';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes.toFixed(0) + ' B';
+  var kb = bytes / 1024;
+  if (kb < 1024) return kb.toFixed(1) + ' KB';
+  var mb = kb / 1024;
+  if (mb < 1024) return mb.toFixed(2) + ' MB';
+  return (mb / 1024).toFixed(2) + ' GB';
+}
+
+// ===== Web Audio API =====
+var audioCtx = null;
+var audioBufferSource = null;
+var gainNode = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) audioCtx = new AC();
+  } catch(e) { audioCtx = null; }
+}
+
+function generateAudioBuffer(ctx, freq, bits, channels, duration) {
+  var internalRate = 44100;
+  var playDuration = 15;
+  var numSamples = Math.floor(internalRate * playDuration);
+
+  var buffer = ctx.createBuffer(channels, numSamples, internalRate);
+  var sampleRatio = internalRate / freq;
+  var levels = Math.pow(2, bits);
+
+  for (var ch = 0; ch < channels; ch++) {
+    var channelData = buffer.getChannelData(ch);
+    for (var i = 0; i < numSamples; i++) {
+      // 1. 零阶保持器降采样
+      var sampledIndex = Math.round(Math.round(i / sampleRatio) * sampleRatio);
+      if (sampledIndex >= numSamples) sampledIndex = numSamples - 1;
+
+      // 2. 生成旋律信号
+      var t = sampledIndex / internalRate;
+      var signal = melodySignal(t);
+
+      // 3. 量化
+      var normalized = (signal + 1) / 2;
+      normalized = Math.max(0, Math.min(1, normalized));
+      var quantized = Math.round(normalized * (levels - 1)) / (levels - 1);
+      channelData[i] = quantized * 2 - 1;
+    }
+  }
+  return buffer;
+}
+
+function playSound() {
+  initAudio();
+  if (!audioCtx) {
+    document.getElementById('playHint').textContent = '浏览器不支持Web Audio API';
+    return;
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  stopSound();
+
+  var buffer = generateAudioBuffer(audioCtx, state.freq, state.bits, state.channels, state.duration);
+  audioBufferSource = audioCtx.createBufferSource();
+  audioBufferSource.buffer = buffer;
+  audioBufferSource.playbackRate.value = state.speed;
+
+  gainNode = audioCtx.createGain();
+  gainNode.gain.value = 0.3;
+  audioBufferSource.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  var playDur = 15 / state.speed;
+  gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime + playDur - 0.5);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + playDur);
+  audioBufferSource.start();
+
+  state.playing = true;
+  document.getElementById('playBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+
+  var qualityLabel = state.freq <= 8000 ? '电话音质' : state.freq <= 22050 ? '广播音质' : state.freq <= 44100 ? 'CD音质' : '高清音质';
+  var bitLabel = state.bits === 4 ? '明显失真' : state.bits === 8 ? '轻微失真' : '高保真';
+  var songName = MELODIES[state.song].name;
+  document.getElementById('playHint').textContent = '播放: ' + songName + ' | ' + qualityLabel + ', ' + state.bits + '位(' + bitLabel + '), ' + state.speed.toFixed(1) + 'x, 约15秒';
+
+  audioBufferSource.onended = function() { stopSound(); };
+}
+
+function stopSound() {
+  if (audioBufferSource) {
+    try { audioBufferSource.stop(); } catch(e) {}
+    audioBufferSource = null;
+  }
+  state.playing = false;
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('playHint').textContent = '点击播放可听不同参数下的音质差异';
+}
+
+// ===== 事件绑定 =====
+function bindRadio(groupId, callback) {
+  var group = document.getElementById(groupId);
+  var items = group.querySelectorAll('.radio-item');
+  items.forEach(function(item) {
+    item.addEventListener('click', function() {
+      items.forEach(function(i) { i.classList.remove('active'); });
+      item.classList.add('active');
+      callback(item.dataset.val);
+    });
+  });
+}
+
+bindRadio('songOpts', function(val) {
+  state.song = val;
+  document.getElementById('songVal').textContent = MELODIES[val].name;
+  drawWave();
+});
+
+bindRadio('freqOpts', function(val) {
+  state.freq = parseInt(val);
+  document.getElementById('freqVal').textContent = val + ' Hz';
+  drawWave();
+  updateFormula();
+});
+
+bindRadio('bitsOpts', function(val) {
+  state.bits = parseInt(val);
+  document.getElementById('bitsVal').textContent = val + ' 位';
+  drawWave();
+  updateFormula();
+});
+
+bindRadio('chOpts', function(val) {
+  state.channels = parseInt(val);
+  document.getElementById('chVal').textContent = val === 1 ? '单声道' : '双声道';
+  updateFormula();
+});
+
+document.getElementById('speedSlider').addEventListener('input', function(e) {
+  state.speed = parseFloat(e.target.value);
+  document.getElementById('speedVal').textContent = state.speed.toFixed(1) + 'x';
+  if (audioBufferSource) {
+    audioBufferSource.playbackRate.value = state.speed;
+  }
+});
+
+document.getElementById('compareSwitch').addEventListener('click', function() {
+  state.compare = !state.compare;
+  this.classList.toggle('on');
+  drawWave();
+});
+
+document.getElementById('playBtn').addEventListener('click', playSound);
+document.getElementById('stopBtn').addEventListener('click', stopSound);
+
+// ===== 初始化 =====
+function init() {
+  resizeCanvas();
+  drawWave();
+  updateFormula();
+}
+
+if (document.readyState === 'complete') {
+  init();
+} else {
+  window.addEventListener('load', init);
+}
+
+})();
+</script>
+</body>
+</html>
